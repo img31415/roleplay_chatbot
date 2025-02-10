@@ -2,9 +2,10 @@ import { ChromaClient } from "chromadb"; // Import the chromaClient
 import FormData from "form-data";
 import fetch from "node-fetch";
 import { Ollama } from "ollama";
+import { v4 as uuidv4 } from "uuid"; // or const { randomUUID } = require('crypto'); in newer Node.js versions
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
-const OLLAMA_CHAT_MODEL = process.env.OLLAMA_CHAT_MODEL || "llama2"; 
+const OLLAMA_CHAT_MODEL = process.env.OLLAMA_CHAT_MODEL || "llama2";
 
 const SYSTEM_PROMPT = `
 # Role and Purpose:
@@ -60,7 +61,7 @@ export const generateResponse = async (
     // 4. Store embeddings in vector database (using the correct collection)
     if (imageEmbeddings.length > 0) {
       await collection.add({
-        ids: imageEmbeddings.map((_, index) => `image_${index}`),
+        ids: imageEmbeddings.map(() => uuidv4()), // Generate UUIDs
         embeddings: imageEmbeddings,
         metadatas: images.map((image) => ({ type: "image", name: image.name })), // Store metadata
       });
@@ -68,7 +69,7 @@ export const generateResponse = async (
 
     if (documentEmbeddings.length > 0) {
       await collection.add({
-        ids: documentEmbeddings.map((_, index) => `doc_${index}`),
+        ids: documentEmbeddings.map(() => uuidv4()), // Generate UUIDs
         embeddings: documentEmbeddings,
         metadatas: documents.map((document) => ({
           type: "document",
