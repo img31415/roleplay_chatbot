@@ -68,7 +68,7 @@ export const generateResponse = async (
 
     if (documentEmbeddings.length > 0) {
       await collection.add({
-        ids: documentEmbeddings.map((_, index) => `image_${index}`),
+        ids: documentEmbeddings.map((_, index) => `doc_${index}`),
         embeddings: documentEmbeddings,
         metadatas: documents.map((document) => ({
           type: "document",
