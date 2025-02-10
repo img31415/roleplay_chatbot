@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  web:
+    build: ./backend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - vision_api
+      - embedding_api
+      - llm_api
+      - db
+    volumes:
+      - ./backend/src:/app/src 
+    environment:
+      - CHROMA_HOST=db
+      - CHROMA_PORT=8000
+      # - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+    volumes:
+      - ./frontend/src:/app/src
+
+  vision_api:
+    build: ./python_apis/vision_api
+    ports:
+      - "5001:5001"
+
+  embedding_api:
+    build: ./python_apis/embedding_api
+    ports:
+      - "5002:5002"
+
+  llm_api:
+    build: ./python_apis/llm_api
+    ports:
+      - "5003:5003"
+  db:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/data
+
+volumes:
+  chroma_data:
