@@ -20,9 +20,8 @@ const chroma = new ChromaClient({
   path: `http://${process.env.CHROMA_HOST}:${process.env.CHROMA_PORT}`, // Use env vars
 });
 
-export const generateResponse = async (
+export const embedContext = async (
   userId: string, // Add userId parameter
-  message: string,
   images: File[],
   documents: File[]
 ) => {
@@ -77,7 +76,15 @@ export const generateResponse = async (
         })), // Store metadata
       });
     }
+  } catch (error) {
+    console.error("Error embedding context:", error);
+  }
+};
 
+export const generateResponse = async (userId: string, message: string) => {
+  try {
+    // 1. Get or create collection for the user
+    let collection = await chroma.getOrCreateCollection({ name: userId });
     // 5. Query vector database for context (using message embedding from Python API and correct collection)
     const messageEmbeddingResponse = await fetch(
       "http://embedding_api:5002/embed",
@@ -106,6 +113,7 @@ export const generateResponse = async (
 
     // 6. Generate Response (using Ollama directly)
     const contextStr = JSON.stringify(context, null, 2);
+
     const messages = [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: `# User question:\n${message}` },

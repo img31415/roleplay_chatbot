@@ -104,3 +104,24 @@ This section describes the generic flow of user input through the system, from t
 6.  **Chroma Updates (if applicable):** The backend might also update the Chroma database with the latest conversation turn (user message and LLM response) to maintain the conversation history and context for future interactions. This is crucial for multi-turn conversations.
 
 7.  **Vision API Integration (if applicable):** If the project includes the `vision_api`, the user might upload an image. The frontend would send this image to the backend. The backend would then use the `vision_api` to analyze the image and extract relevant information, which would then be included in the prompt sent to the LLM.
+
+```mermaid
+sequenceDiagram
+  actor Alice as Alice
+  actor Bob as UI
+  actor A1 as Web Server
+  actor A2 as Vision Model
+  actor A3 as Embedding Model
+  actor A4 as Vector Database
+  actor A5 as LLM
+  Alice ->> Bob: Images, Context
+  Bob ->> A1: Images, Context
+  A1 ->> A2: Images
+  A2 ->> A3: ​Image captions/features
+  Bob ->> A3: Context/Text
+  A3 ->> A4: Vectors
+  A1 ->> A5: Conversation History
+  A5 ->> A1: Hi Alice
+  A1 ->> Bob: Hi Alice
+  Bob ->> Alice: Hi Alice
+```
