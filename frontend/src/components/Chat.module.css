@@ -1,0 +1,99 @@
+.chatContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 80%;
+  margin: 20px auto;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.chatWindow {
+  width: 100%;
+  height: 300px;
+  overflow-y: scroll;
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.message {
+  padding: 8px 12px;
+  margin-bottom: 5px;
+  border-radius: 5px;
+  word-wrap: break-word;
+}
+
+.user {
+  background-color: #e2f0ff;
+  align-self: flex-end;
+}
+
+.bot {
+  background-color: #f0f0f0;
+  align-self: flex-start;
+}
+
+.form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.form input[type="text"] {
+  width: 70%;
+  padding: 8px;
+  margin-bottom: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.form button {
+  padding: 8px 16px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.form button:hover {
+  background-color: #0056b3;
+}
+
+/* Initial Configuration Form */
+.initialConfigForm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.initialConfigForm h2 {
+  margin-bottom: 10px;
+}
+
+.initialConfigForm label {
+  margin-bottom: 5px;
+}
+
+.initialConfigForm input[type="text"],
+.initialConfigForm input[type="file"] {
+  width: 70%;
+  padding: 8px;
+  margin-bottom: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.initialConfigForm button {
+  padding: 8px 16px;
+  background-color: #28a745;
+}
+
+.initialConfigForm button:hover {
+  background-color: #1e7e34;
+}

@@ -1,5 +1,4 @@
 import React from "react";
-import "./App.css"; // You can add your CSS here
 import Chat from "./components/Chat";
 
 function App() {

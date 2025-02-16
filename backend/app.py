@@ -8,6 +8,11 @@ from flask_cors import CORS
 from PIL import Image
 from transformers import BlipProcessor, BlipForConditionalGeneration
 import torch
+from dotenv import load_dotenv
+import io
+import base64
+
+load_dotenv(dotenv_path='../.env')
 
 app = Flask(__name__)
 CORS(app)
@@ -15,14 +20,15 @@ CORS(app)
 # Load Sentence Transformer model
 model = SentenceTransformer('all-mpnet-base-v2')
 
+
 # ChromaDB Configuration (read from environment variables)
-CHROMA_HOST = os.environ.get("CHROMA_HOST", "localhost")
-CHROMA_PORT = os.environ.get("CHROMA_PORT", "8000")
+CHROMA_HOST = os.getenv("CHROMA_HOST")
+CHROMA_PORT = os.getenv("CHROMA_PORT")
 CHROMA_URL = f"http://{CHROMA_HOST}:{CHROMA_PORT}"
 
 #Ollama Configuration
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
-OLLAMA_CHAT_MODEL = os.environ.get("OLLAMA_CHAT_MODEL", "llama2")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")
+OLLAMA_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL")
 SYSTEM_PROMPT = """
 # Role and Purpose:
 
@@ -68,24 +74,25 @@ def embed_context():
 
         # 2. Process images and messages
         image_embeddings = []
-        for image_data in images:
-            try:
-                image = Image.open(image_data['data']).convert("RGB")
-                caption = process_image(image)
-                image_embedding = embed_text(caption)
-                image_embeddings.append(image_embedding)
-            except Exception as e:
-                print(f"Error processing image: {e}")
-                continue  # Skip to the next image
+        if images:
+            for image_data in images:
+                try:
+                    # Decode base64 image
+                    image = Image.open(io.BytesIO(base64.b64decode(image_data.split(',')[1]))).convert("RGB")
+                    caption = process_image(image)
+                    image_embedding = embed_text(caption)
+                    image_embeddings.append(image_embedding)
+                except Exception as e:
+                    print(f"Error processing image: {e}")
+                    continue  # Skip to the next image
 
         message_embeddings = []
-        for message in messages:
+        if messages:
             try:
-                embedding = embed_text(message)
+                embedding = embed_text(messages)
                 message_embeddings.append(embedding)
             except Exception as e:
                 print(f"Error embedding message: {e}")
-                continue  # Skip to the next message
 
         # 3. Store embeddings in vector database
         if image_embeddings:

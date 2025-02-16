@@ -1,46 +1,95 @@
 import React, { useState } from "react";
+import styles from "./Chat.module.css";
 
-const Chat: React.FC = () => {
+const Chat = () => {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([{ role: "bot", content: "Hi!" }]);
-  const [images, setImages] = useState<File[]>([]); // Store selected images
-  const [documents, setDocuments] = useState<File[]>([]); // Store selected documents
+  const [initialConfigText, setInitialConfigText] = useState("");
+  const [initialConfigImage, setInitialConfigImage] = useState<File | null>(
+    null
+  );
+  const [isConfigured, setIsConfigured] = useState(false);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setImages(Array.from(e.target.files));
+    if (e.target.files && e.target.files.length > 0) {
+      setInitialConfigImage(e.target.files[0]);
     }
   };
 
-  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setDocuments(Array.from(e.target.files));
+  const handleInitialConfigSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!initialConfigText && !initialConfigImage) {
+      alert(
+        "Please provide either text or an image for initial configuration."
+      );
+      return;
+    }
+
+    // Convert image to base64
+    let base64Image = null;
+    if (initialConfigImage) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        base64Image = reader.result;
+        submitEmbedContext(base64Image);
+      };
+      reader.readAsDataURL(initialConfigImage);
+    } else {
+      submitEmbedContext(null);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submitEmbedContext = async (
+    base64Image: string | ArrayBuffer | null
+  ) => {
+    try {
+      const response = await fetch(
+        `${process.env.REACT_APP_BACKEND_BASE_URL}/embed_context`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: "admin",
+            messages: initialConfigText,
+            images: base64Image ? [base64Image] : [],
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      setIsConfigured(true);
+      alert("Initial configuration submitted successfully!");
+    } catch (error) {
+      console.error("Error submitting initial configuration:", error);
+      alert("Error submitting initial configuration. Please try again.");
+    }
+  };
+
+  const submitPrompt = async (e: React.FormEvent) => {
     e.preventDefault();
 
     setMessages([...messages, { role: "user", content: message }]);
     setMessage("");
 
-    const formData = new FormData();
-    formData.append("message", message);
-
-    // Append images to FormData
-    images.forEach((image, index) => {
-      formData.append(`image${index}`, image); // Use a dynamic name
-    });
-
-    // Append documents to FormData
-    documents.forEach((document, index) => {
-      formData.append(`document${index}`, document); // Dynamic name
-    });
-
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch(`${process.env.BACKEND_BASE_URL}/prompt`, {
         method: "POST",
-        body: formData, // Send FormData
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: "testuser", // Replace with actual user ID
+          message: message,
+        }),
       });
 
       if (!response.ok) {
@@ -62,26 +111,48 @@ const Chat: React.FC = () => {
   };
 
   return (
-    <div>
-      <div className="chat-window">
-        {messages.map((m, i) => (
-          <div key={i} className={`message ${m.role}`}>
-            {m.content}
+    <div className={styles.chatContainer}>
+      {!isConfigured ? (
+        <form
+          onSubmit={handleInitialConfigSubmit}
+          className={styles.initialConfigForm}
+        >
+          <h2>Hello. How are you? Tell me what I should be:</h2>
+          <label>
+            Text:
+            <input
+              type="text"
+              value={initialConfigText}
+              onChange={(e) => setInitialConfigText(e.target.value)}
+            />
+          </label>
+          <br />
+          <label>
+            Image:
+            <input type="file" accept="image/*" onChange={handleImageChange} />
+          </label>
+          <br />
+          <button type="submit">Submit Configuration</button>
+        </form>
+      ) : (
+        <div>
+          <div className={styles.chatWindow}>
+            {messages.map((m, i) => (
+              <div key={i} className={`${styles.message} ${styles[m.role]}`}>
+                {m.content}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-        />
-        <input type="file" multiple onChange={handleImageChange} />{" "}
-        {/* Image upload */}
-        <input type="file" multiple onChange={handleDocumentChange} />{" "}
-        {/* Document upload */}
-        <button type="submit">Send</button>
-      </form>
+          <form onSubmit={submitPrompt} className={styles.form}>
+            <input
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+            />
+            <button type="submit">Send</button>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

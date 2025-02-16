@@ -7,20 +7,16 @@ services:
       - "3000:3000"
     volumes:
       - ./backend:/app # Changed volume mapping
-    environment:
-      - CHROMA_HOST=db
-      - CHROMA_PORT=8000
-      # - OLLAMA_BASE_URL=http://ollama:11434
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "80:80"
-    depends_on:
-      - web
-    volumes:
-      - ./frontend/src:/app/src
+    env_file: 
+      - ./backend/.env
+  # frontend:
+  #   build: ./frontend
+  #   ports:
+  #     - "80:80"
+  #   depends_on:
+  #     - backend
+  #   volumes:
+  #     - ./frontend/src:/app/src
   db:
     image: chromadb/chroma:latest
     ports:

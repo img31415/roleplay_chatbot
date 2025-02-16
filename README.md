@@ -1,4 +1,4 @@
-# Role-Playing Chatbot
+# Roleplay Chatbot
 
 This project implements a role-playing chatbot using Llama 2, Chroma, and other open-source tools. It leverages a modern React frontend, a Node.js backend, and Python APIs for tasks like vector embeddings, large language model interaction, and potentially vision processing. Docker and Docker Compose orchestrate the various services, simplifying setup and deployment.
 
@@ -59,7 +59,7 @@ This project implements a role-playing chatbot using Llama 2, Chroma, and other 
     - **Local Ollama:** If you're running Ollama locally, follow the Ollama instructions to start it on your machine. Ensure it's serving the Llama 2 model. Make sure the model name you configured in Ollama matches the one your application expects. Use `ollama run <your_model_name>` to start a specific model.
     - **Dockerized Ollama (Optional):** If you prefer to run Ollama in Docker, you can add an `ollama` service to your `docker-compose.yml` file and start it with `docker-compose up -d ollama`. Then, use the `OLLAMA_BASE_URL=http://ollama:11434` in your `.env` file.
 
-4.  **Start Backend:** `docker-compose up -d web` (from the root of the project). This starts the Node.js backend server.
+4.  **Start Backend:** `docker-compose up -d backend` (from the root of the project). This starts the Node.js backend server.
 
 5.  **Start Frontend (Local Development):**
     - Navigate to the frontend directory: `cd frontend`
@@ -125,3 +125,17 @@ sequenceDiagram
   A1 ->> Bob: Hi Alice
   Bob ->> Alice: Hi Alice
 ```
+
+## ChromaDB Instructions
+
+### Accessing ChromaDB
+
+The ChromaDB instance is running within a Docker container. Your backend service accesses it via the `db` hostname (defined in `docker-compose.yml`) on port 8000.
+
+### Inspecting Data
+
+Since ChromaDB doesn't have a built-in UI, you can interact with it via API calls or use a custom script.
+
+#### Option 1: Using `curl`
+
+You can use `curl` to make API requests directly. For example, to check the ChromaDB heartbeat:
