@@ -9,6 +9,7 @@ const Chat = () => {
     null
   );
   const [isConfigured, setIsConfigured] = useState(false);
+  const [embedContextResponse, setEmbedContextResponse] = useState(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -66,7 +67,9 @@ const Chat = () => {
         );
       }
 
-      setIsConfigured(true);
+      const data = await response.json();
+      setEmbedContextResponse(data);
+      // setIsConfigured(true);
       alert("Initial configuration submitted successfully!");
     } catch (error) {
       console.error("Error submitting initial configuration:", error);
@@ -136,6 +139,12 @@ const Chat = () => {
         </form>
       ) : (
         <div>
+          {embedContextResponse && (
+            <div className={styles.response}>
+              <h3>Embed Context Response:</h3>
+              <pre>{JSON.stringify(embedContextResponse, null, 2)}</pre>
+            </div>
+          )}
           <div className={styles.chatWindow}>
             {messages.map((m, i) => (
               <div key={i} className={`${styles.message} ${styles[m.role]}`}>
