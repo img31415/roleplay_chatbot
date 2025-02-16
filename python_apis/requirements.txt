@@ -1,4 +1,0 @@
-Flask
-Pillow
-transformers
-sentence_transformers
