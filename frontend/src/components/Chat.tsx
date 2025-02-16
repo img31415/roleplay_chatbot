@@ -27,36 +27,19 @@ const Chat = () => {
       return;
     }
 
-    // Convert image to base64
-    let base64Image = null;
+    const formData = new FormData();
+    formData.append("userId", "admin");
+    formData.append("messages", initialConfigText);
     if (initialConfigImage) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        base64Image = reader.result;
-        submitEmbedContext(base64Image);
-      };
-      reader.readAsDataURL(initialConfigImage);
-    } else {
-      submitEmbedContext(null);
+      formData.append("image", initialConfigImage);
     }
-  };
 
-  const submitEmbedContext = async (
-    base64Image: string | ArrayBuffer | null
-  ) => {
     try {
       const response = await fetch(
         `${process.env.REACT_APP_BACKEND_BASE_URL}/embed_context`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId: "admin",
-            messages: initialConfigText,
-            images: base64Image ? [base64Image] : [],
-          }),
+          body: formData,
         }
       );
 

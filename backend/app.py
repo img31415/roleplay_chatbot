@@ -11,11 +11,17 @@ import torch
 from dotenv import load_dotenv
 import io
 import base64
+import logging
+import hashlib
+
 
 load_dotenv(dotenv_path='../.env')
 
 app = Flask(__name__)
 CORS(app)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Load Sentence Transformer model
 model = SentenceTransformer('all-mpnet-base-v2')
@@ -52,18 +58,23 @@ def embed_text(text: str):
 
 def process_image(image_file):
     """Processes the given image file and returns a caption."""
-    image = Image.open(image_file).convert("RGB")
+    image = Image.open(image_file)
+    image = image.convert("RGB")
     inputs = processor(image, return_tensors="pt").to(device)
     out = model_blip.generate(**inputs)
     caption = processor.decode(out[0], skip_special_tokens=True)
+    logging.info(f"Image caption: {caption}");
+
     return caption
 
 @app.route('/embed_context', methods=['POST'])
 def embed_context():
-    data = request.get_json()
-    user_id = data.get('userId')
-    images = data.get('images', [])  # List of image files
-    messages = data.get('messages', [])
+    logging.info("Received request at /embed_context")
+    user_id = request.form.get('userId')
+    messages = request.form.get('messages')
+    image_file = request.files.get('image')
+
+    logging.info(f"Request data: {user_id}, {messages}, {image_file}")
 
     if not user_id:
         return jsonify({'error': 'User ID is required'}), 400
@@ -74,17 +85,23 @@ def embed_context():
 
         # 2. Process images and messages
         image_embeddings = []
-        if images:
-            for image_data in images:
-                try:
-                    # Decode base64 image
-                    image = Image.open(io.BytesIO(base64.b64decode(image_data.split(',')[1]))).convert("RGB")
-                    caption = process_image(image)
-                    image_embedding = embed_text(caption)
-                    image_embeddings.append(image_embedding)
-                except Exception as e:
-                    print(f"Error processing image: {e}")
-                    continue  # Skip to the next image
+        image_ids = []
+        if image_file:
+            try:
+                # Extract filename from image file
+                filename = image_file.filename
+                # Decode base64 image
+                caption = process_image(image_file)
+                
+                image_embedding = embed_text(caption)
+                image_embeddings.append(image_embedding)
+
+                # Hash the image file name to create an ID
+                image_id = hashlib.sha256(filename.encode('utf-8')).hexdigest()
+                image_ids.append(image_id)
+
+            except Exception as e:
+                logging.error(f"Error processing image: {e}")
 
         message_embeddings = []
         if messages:
@@ -92,28 +109,32 @@ def embed_context():
                 embedding = embed_text(messages)
                 message_embeddings.append(embedding)
             except Exception as e:
-                print(f"Error embedding message: {e}")
+                logging.error(f"Error embedding message: {e}")
 
         # 3. Store embeddings in vector database
         if image_embeddings:
-            ids = [str(uuid.uuid4()) for _ in image_embeddings]
-            metadatas = [{"type": "image", "name": 'image'} for _ in images]
-            collection.add(ids=ids, embeddings=image_embeddings, metadatas=metadatas)
+            metadatas = [{"type": "image", "name": 'image'} for _ in [filename]]
+            collection.add(ids=image_ids, embeddings=image_embeddings, metadatas=metadatas)
 
         if message_embeddings:
             ids = [str(uuid.uuid4()) for _ in message_embeddings]
-            metadatas = [{"type": "message", "text": message} for message in messages]
+            metadatas = [{"type": "message", "text": messages} for message in [messages]]
             collection.add(ids=ids, embeddings=message_embeddings, metadatas=metadatas)
 
-        return jsonify({'success': True}), 200
+        response_data = jsonify({'success': True})
+        logging.info(f"Response data: {response_data.json}")  # Log the response data
+        logging.info("Successfully processed request at /embed_context")
+        return response_data, 200
 
     except Exception as e:
-        print(f"Error embedding context: {e}")
+        logging.exception(f"Error embedding context: {e}")
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 @app.route('/prompt', methods=['POST'])
 def generate_response():
+    logging.info("Received request at /prompt")
     data = request.get_json()
+    logging.info(f"Request data: {data}")  # Log the request data
     user_id = data.get('userId')
     message = data.get('message')
 
@@ -152,10 +173,13 @@ def generate_response():
         response = requests.post(f"{OLLAMA_BASE_URL}/api/chat", json=ollama_payload)
         response.raise_for_status()
         ollama_response = response.json()
-        return jsonify({'response': ollama_response["message"]["content"]})
+        response_data = jsonify({'response': ollama_response["message"]["content"]})
+        logging.info(f"Response data: {response_data.json}")  # Log the response data
+        logging.info("Successfully processed request at /prompt")
+        return response_data
 
     except Exception as e:
-        print(f"Error generating response: {e}")
+        logging.exception(f"Error generating response: {e}")
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 if __name__ == '__main__':
