@@ -6,13 +6,30 @@ import requests
 import os
 from flask_cors import CORS
 from PIL import Image
-from transformers import BlipProcessor, BlipForConditionalGeneration
+from transformers import Blip2Processor, Blip2ForConditionalGeneration
 import torch
 from dotenv import load_dotenv
-import io
-import base64
 import logging
 import hashlib
+
+# Define the models to keep
+MODELS_TO_KEEP = [
+    "Salesforce/blip2-flan-t5-xl"
+]
+
+def clean_model_cache(models_to_keep):
+    """Cleans the Hugging Face model cache directory, keeping only specified models."""
+    cache_dir = Path.home() / ".cache/huggingface/transformers"
+    if not cache_dir.exists():
+        return
+
+    for model_dir in cache_dir.iterdir():
+        if model_dir.is_dir() and model_dir.name not in models_to_keep:
+            shutil.rmtree(model_dir)
+            logging.info(f"Deleted cached model: {model_dir}")
+
+# Call the cleanup function before loading the models
+clean_model_cache(MODELS_TO_KEEP)
 
 
 load_dotenv(dotenv_path='../.env')
@@ -22,9 +39,6 @@ CORS(app)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Load Sentence Transformer model
-model = SentenceTransformer('all-mpnet-base-v2')
 
 
 # ChromaDB Configuration (read from environment variables)
@@ -46,26 +60,34 @@ chroma_client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
 
 # Load BLIP model and processor (adjust device if needed)
 device = "cuda" if torch.cuda.is_available() else "cpu" #Use CUDA if you have GPU, otherwise use CPU
-processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-model_blip = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(device)
 
+logging.info(f"Loading BLIP model and processor on device :{device}")
+
+# Load Sentence Transformer model
+llm_model = SentenceTransformer('all-mpnet-base-v2')
+image_model = Blip2ForConditionalGeneration.from_pretrained("Salesforce/blip2-flan-t5-xl").to(device)
+auto_processor = Blip2Processor.from_pretrained("Salesforce/blip2-flan-t5-xl")
+
+def process_image(image_file):
+    try:
+        image = Image.open(image_file).convert("RGB")
+
+        inputs = auto_processor(images=image, return_tensors="pt")
+        outputs = image_model.generate(**inputs)
+
+        caption = auto_processor.decode(outputs[0], skip_special_tokens=True)
+        logging.info(f"Image caption: {caption}")
+        return caption
+    except Exception as e:
+        logging.error(f"Error processing image: {e}")
+        return None  # Or handle the error as you see fit
+    
 def embed_text(text: str):
     """Embeds the given text using the Sentence Transformer model."""
     if not text:
         raise ValueError("No text provided")
-    embedding = model.encode(text).tolist()
+    embedding = llm_model.encode(text).tolist()
     return embedding
-
-def process_image(image_file):
-    """Processes the given image file and returns a caption."""
-    image = Image.open(image_file)
-    image = image.convert("RGB")
-    inputs = processor(image, return_tensors="pt").to(device)
-    out = model_blip.generate(**inputs)
-    caption = processor.decode(out[0], skip_special_tokens=True)
-    logging.info(f"Image caption: {caption}");
-
-    return caption
 
 @app.route('/embed_context', methods=['POST'])
 def embed_context():
@@ -73,6 +95,7 @@ def embed_context():
     user_id = request.form.get('userId')
     messages = request.form.get('messages')
     image_file = request.files.get('image')
+    caption = ''
 
     logging.info(f"Request data: {user_id}, {messages}, {image_file}")
 
@@ -85,20 +108,19 @@ def embed_context():
 
         # 2. Process images and messages
         image_embeddings = []
-        image_ids = []
         if image_file:
             try:
                 # Extract filename from image file
                 filename = image_file.filename
                 # Decode base64 image
                 caption = process_image(image_file)
+                return caption
                 
                 image_embedding = embed_text(caption)
                 image_embeddings.append(image_embedding)
 
                 # Hash the image file name to create an ID
                 image_id = hashlib.sha256(filename.encode('utf-8')).hexdigest()
-                image_ids.append(image_id)
 
             except Exception as e:
                 logging.error(f"Error processing image: {e}")
@@ -113,15 +135,15 @@ def embed_context():
 
         # 3. Store embeddings in vector database
         if image_embeddings:
-            metadatas = [{"type": "image", "name": 'image'} for _ in [filename]]
-            collection.add(ids=image_ids, embeddings=image_embeddings, metadatas=metadatas)
+            metadatas = [{"type": "image", "filename": filename} for _ in [filename]]
+            collection.add(ids=[image_id], embeddings=image_embeddings, metadatas=metadatas)
 
         if message_embeddings:
             ids = [str(uuid.uuid4()) for _ in message_embeddings]
-            metadatas = [{"type": "message", "text": messages} for message in [messages]]
+            metadatas = [{"type": "text", "text": messages} for message in [messages]]
             collection.add(ids=ids, embeddings=message_embeddings, metadatas=metadatas)
 
-        response_data = jsonify({'success': True})
+        response_data = jsonify({'success': True, 'caption': caption})
         logging.info(f"Response data: {response_data.json}")  # Log the response data
         logging.info("Successfully processed request at /embed_context")
         return response_data, 200
@@ -139,7 +161,7 @@ def generate_response():
     message = data.get('message')
 
     if not user_id or not message:
-        return jsonify({'error': 'User ID and message are required'}), 400
+        return jsonify({'error': 'User ID is required'}), 400
 
     try:
         # 1. Get or create collection for the user
@@ -181,6 +203,60 @@ def generate_response():
     except Exception as e:
         logging.exception(f"Error generating response: {e}")
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
+
+@app.route('/get_images', methods=['GET'])
+def get_images():
+    logging.info("Received request at /get_images")
+    user_id = request.args.get('userId')
+
+    if not user_id:
+        return jsonify({'error': 'User ID is required'}), 400
+
+    try:
+        # Get the collection for the user
+        collection = chroma_client.get_or_create_collection(name=user_id)
+
+        # Query all images in the collection
+        results = collection.query(query_embeddings=[], n_results=1000, filter={"type": "image"})
+
+        # Extract image metadata
+        images = [{"id": result['id'], "filename": result['metadata']['filename']} for result in results['metadatas']]
+
+        return jsonify({'images': images}), 200
+
+    except Exception as e:
+        logging.exception(f"Error fetching images: {e}")
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
+    
+
+@app.route('/delete_all_images', methods=['DELETE'])
+def delete_all_images():
+    logging.info("Received request at /delete_all_images")
+    user_id = request.args.get('userId')
+
+    if not user_id:
+        return jsonify({'error': 'User ID is required'}), 400
+
+    try:
+        # Get the collection for the user
+        collection = chroma_client.get_or_create_collection(name=user_id)
+
+        # Query all images in the collection
+        results = collection.query(query_embeddings=[], n_results=1000, filter={"type": "image"})
+
+        # Extract image IDs
+        image_ids = [result['id'] for result in results['metadatas']]
+
+        # Delete all images from the collection
+        collection.delete(ids=image_ids)
+        logging.info(f"Deleted all images for user: {user_id}")
+
+        return jsonify({'success': True}), 200
+
+    except Exception as e:
+        logging.exception(f"Error deleting all images: {e}")
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
