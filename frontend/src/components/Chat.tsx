@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Chat.module.css";
 
 const Chat = () => {
@@ -10,6 +10,7 @@ const Chat = () => {
   );
   const [isConfigured, setIsConfigured] = useState(false);
   const [embedContextResponse, setEmbedContextResponse] = useState(null);
+  const [images, setImages] = useState<{ filename: string }[]>([]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -96,55 +97,88 @@ const Chat = () => {
     }
   };
 
+  useEffect(() => {
+    const fetchImages = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.REACT_APP_BACKEND_BASE_URL}/get_images?userId=admin`
+        );
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setImages(data.images);
+      } catch (error) {
+        console.error("Error fetching images:", error);
+      }
+    };
+
+    fetchImages();
+  }, []);
+
   return (
-    <div className={styles.chatContainer}>
-      {!isConfigured ? (
-        <form
-          onSubmit={handleInitialConfigSubmit}
-          className={styles.initialConfigForm}
-        >
-          <h2>Hello. How are you? Tell me what I should be:</h2>
-          <label>
-            Text:
-            <input
-              type="text"
-              value={initialConfigText}
-              onChange={(e) => setInitialConfigText(e.target.value)}
-            />
-          </label>
-          <br />
-          <label>
-            Image:
-            <input type="file" accept="image/*" onChange={handleImageChange} />
-          </label>
-          <br />
-          <button type="submit">Submit Configuration</button>
-        </form>
-      ) : (
-        <div>
-          {embedContextResponse && (
-            <div className={styles.response}>
-              <h3>Embed Context Response:</h3>
-              <pre>{JSON.stringify(embedContextResponse, null, 2)}</pre>
-            </div>
-          )}
-          <div className={styles.chatWindow}>
-            {messages.map((m, i) => (
-              <div key={i} className={`${styles.message} ${styles[m.role]}`}>
-                {m.content}
-              </div>
-            ))}
-          </div>
-          <form onSubmit={submitPrompt} className={styles.form}>
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-            />
-            <button type="submit">Send</button>
+    <div className={styles.container}>
+      <div className={styles.leftPane}>
+        {!isConfigured ? (
+          <form
+            onSubmit={handleInitialConfigSubmit}
+            className={styles.initialConfigForm}
+          >
+            <h2>Hello. How are you? Tell me what I should be:</h2>
+            <label>
+              Text:
+              <input
+                type="text"
+                value={initialConfigText}
+                onChange={(e) => setInitialConfigText(e.target.value)}
+              />
+            </label>
+            <br />
+            <label>
+              Image:
+              <input type="file" accept="image/*" onChange={handleImageChange} />
+            </label>
+            <br />
+            <button type="submit">Submit Configuration</button>
           </form>
+        ) : (
+          <div>
+            {embedContextResponse && (
+              <div className={styles.response}>
+                <h3>Embed Context Response:</h3>
+                <pre>{JSON.stringify(embedContextResponse, null, 2)}</pre>
+              </div>
+            )}
+            <div className={styles.imageList}>
+              {images.map((image, index) => (
+                <img
+                  key={index}
+                  src={`${process.env.REACT_APP_BACKEND_BASE_URL}/images/${image.filename}`}
+                  alt={`Uploaded ${index}`}
+                  className={styles.imageItem}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className={styles.rightPane}>
+        <div className={styles.chatWindow}>
+          {messages.map((m, i) => (
+            <div key={i} className={`${styles.message} ${styles[m.role]}`}>
+              {m.content}
+            </div>
+          ))}
         </div>
-      )}
+        <form onSubmit={submitPrompt} className={styles.form}>
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+          />
+          <button type="submit">Send</button>
+        </form>
+      </div>
     </div>
   );
 };

@@ -6,33 +6,14 @@ import requests
 import os
 from flask_cors import CORS
 from PIL import Image
-from transformers import Blip2Processor, Blip2ForConditionalGeneration
+from transformers import BlipProcessor, BlipForConditionalGeneration
 import torch
 from dotenv import load_dotenv
 import logging
 import hashlib
 
-# Define the models to keep
-MODELS_TO_KEEP = [
-    "Salesforce/blip2-flan-t5-xl"
-]
 
-def clean_model_cache(models_to_keep):
-    """Cleans the Hugging Face model cache directory, keeping only specified models."""
-    cache_dir = Path.home() / ".cache/huggingface/transformers"
-    if not cache_dir.exists():
-        return
-
-    for model_dir in cache_dir.iterdir():
-        if model_dir.is_dir() and model_dir.name not in models_to_keep:
-            shutil.rmtree(model_dir)
-            logging.info(f"Deleted cached model: {model_dir}")
-
-# Call the cleanup function before loading the models
-clean_model_cache(MODELS_TO_KEEP)
-
-
-load_dotenv(dotenv_path='../.env')
+load_dotenv(dotenv_path='./.env')
 
 app = Flask(__name__)
 CORS(app)
@@ -65,19 +46,19 @@ logging.info(f"Loading BLIP model and processor on device :{device}")
 
 # Load Sentence Transformer model
 llm_model = SentenceTransformer('all-mpnet-base-v2')
-image_model = Blip2ForConditionalGeneration.from_pretrained("Salesforce/blip2-flan-t5-xl").to(device)
-auto_processor = Blip2Processor.from_pretrained("Salesforce/blip2-flan-t5-xl")
+image_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(device)
+processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
 
 def process_image(image_file):
     try:
-        image = Image.open(image_file).convert("RGB")
+        image = Image.open(image_file)
 
-        inputs = auto_processor(images=image, return_tensors="pt")
-        outputs = image_model.generate(**inputs)
-
-        caption = auto_processor.decode(outputs[0], skip_special_tokens=True)
-        logging.info(f"Image caption: {caption}")
-        return caption
+        inputs = processor(images=image, return_tensors="pt").to(device, torch.float16)
+        generated_ids = image_model.generate(**inputs)
+        generated_text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
+        logging.info(f"Image caption: {generated_text}")
+        
+        return generated_text
     except Exception as e:
         logging.error(f"Error processing image: {e}")
         return None  # Or handle the error as you see fit
@@ -114,7 +95,6 @@ def embed_context():
                 filename = image_file.filename
                 # Decode base64 image
                 caption = process_image(image_file)
-                return caption
                 
                 image_embedding = embed_text(caption)
                 image_embeddings.append(image_embedding)
@@ -124,6 +104,8 @@ def embed_context():
 
             except Exception as e:
                 logging.error(f"Error processing image: {e}")
+
+        return caption
 
         message_embeddings = []
         if messages:
