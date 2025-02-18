@@ -67,9 +67,10 @@
 .initialConfigForm {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   width: 100%;
   margin-bottom: 20px;
+  text-align: left;
 }
 
 .initialConfigForm h2 {
@@ -87,6 +88,12 @@
   margin-bottom: 10px;
   border: 1px solid #ddd;
   border-radius: 5px;
+}
+
+.submitButtonContainer {
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }
 
 .initialConfigForm button {
@@ -113,6 +120,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  list-style-type: none;
+  padding: 0;
+}
+
+.imageList li {
+  margin-bottom: 10px;
 }
 
 .imageItem {
@@ -121,4 +134,18 @@
   object-fit: cover;
   border: 1px solid #ddd;
   border-radius: 5px;
+}
+
+.imageListBox {
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin-top: 20px;
+}
+
+.imageListBox h3 {
+  margin-top: 0;
+}
+
+.chatInput {
+  text-align: left;
 }

@@ -10,7 +10,9 @@ const Chat = () => {
   );
   const [isConfigured, setIsConfigured] = useState(false);
   const [embedContextResponse, setEmbedContextResponse] = useState(null);
-  const [images, setImages] = useState<{ filename: string }[]>([]);
+  const [images, setImages] = useState<
+    { filename?: string; caption?: string }[] | null
+  >(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -119,48 +121,47 @@ const Chat = () => {
   return (
     <div className={styles.container}>
       <div className={styles.leftPane}>
-        {!isConfigured ? (
-          <form
-            onSubmit={handleInitialConfigSubmit}
-            className={styles.initialConfigForm}
-          >
-            <h2>Hello. How are you? Tell me what I should be:</h2>
-            <label>
-              Text:
-              <input
-                type="text"
-                value={initialConfigText}
-                onChange={(e) => setInitialConfigText(e.target.value)}
-              />
-            </label>
-            <br />
-            <label>
-              Image:
-              <input type="file" accept="image/*" onChange={handleImageChange} />
-            </label>
-            <br />
+        <form
+          onSubmit={handleInitialConfigSubmit}
+          className={styles.initialConfigForm}
+        >
+          <h2>Hello. How are you? Tell me what I should be:</h2>
+          <label>
+            Text:
+            <input
+              type="text"
+              value={initialConfigText}
+              onChange={(e) => setInitialConfigText(e.target.value)}
+            />
+          </label>
+          <br />
+          <label>
+            Image:
+            <input type="file" accept="image/*" onChange={handleImageChange} />
+          </label>
+          <br />
+          <div className={styles.submitButtonContainer}>
             <button type="submit">Submit Configuration</button>
-          </form>
-        ) : (
-          <div>
-            {embedContextResponse && (
-              <div className={styles.response}>
-                <h3>Embed Context Response:</h3>
-                <pre>{JSON.stringify(embedContextResponse, null, 2)}</pre>
-              </div>
-            )}
-            <div className={styles.imageList}>
-              {images.map((image, index) => (
-                <img
-                  key={index}
-                  src={`${process.env.REACT_APP_BACKEND_BASE_URL}/images/${image.filename}`}
-                  alt={`Uploaded ${index}`}
-                  className={styles.imageItem}
-                />
-              ))}
-            </div>
           </div>
-        )}
+        </form>
+        <div>
+          {embedContextResponse && (
+            <div className={styles.response}>
+              <h3>Embed Context Response:</h3>
+              <pre>{JSON.stringify(embedContextResponse, null, 2)}</pre>
+            </div>
+          )}
+          <div className={styles.imageListBox}>
+            <h3>Uploaded Images:</h3>
+            <ul className={styles.imageList}>
+              {images?.map((image, index) => (
+                <li key={index}>
+                  {image.filename} {image.caption ? `(${image.caption})` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       </div>
       <div className={styles.rightPane}>
         <div className={styles.chatWindow}>
@@ -175,6 +176,7 @@ const Chat = () => {
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
+            className={styles.chatInput}
           />
           <button type="submit">Send</button>
         </form>
