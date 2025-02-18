@@ -105,8 +105,6 @@ def embed_context():
             except Exception as e:
                 logging.error(f"Error processing image: {e}")
 
-        return caption
-
         message_embeddings = []
         if messages:
             try:
@@ -117,7 +115,7 @@ def embed_context():
 
         # 3. Store embeddings in vector database
         if image_embeddings:
-            metadatas = [{"type": "image", "filename": filename} for _ in [filename]]
+            metadatas = [{"type": "image", "filename": filename, "caption": caption} for _ in [filename]]
             collection.add(ids=[image_id], embeddings=image_embeddings, metadatas=metadatas)
 
         if message_embeddings:
@@ -199,10 +197,10 @@ def get_images():
         collection = chroma_client.get_or_create_collection(name=user_id)
 
         # Query all images in the collection
-        results = collection.query(query_embeddings=[], n_results=1000, filter={"type": "image"})
-
-        # Extract image metadata
-        images = [{"id": result['id'], "filename": result['metadata']['filename']} for result in results['metadatas']]
+        results = collection.get(where={'type': 'image'})
+        logging.info(f"Found {results['metadatas']} images for user: {user_id}")
+        
+        images = [{'filename': item['filename'], 'caption': item.get('caption', None)} for item in results['metadatas']if isinstance(item, dict) and 'filename' in item]
 
         return jsonify({'images': images}), 200
 
