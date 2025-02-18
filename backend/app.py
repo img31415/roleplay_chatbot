@@ -222,10 +222,10 @@ def delete_all_images():
         collection = chroma_client.get_or_create_collection(name=user_id)
 
         # Query all images in the collection
-        results = collection.query(query_embeddings=[], n_results=1000, filter={"type": "image"})
+        results = collection.get(where={'type': 'image'})
 
         # Extract image IDs
-        image_ids = [result['id'] for result in results['metadatas']]
+        image_ids = [result['id'] for result in results]
 
         # Delete all images from the collection
         collection.delete(ids=image_ids)

@@ -23,6 +23,28 @@
   margin-bottom: 5px;
   border-radius: 5px;
   word-wrap: break-word;
+  display: flex;
+  flex-direction: column;
+}
+
+.userMessage {
+  background-color: #fff3cd;
+  align-self: flex-end;
+}
+
+.botMessage {
+  background-color: #cce5ff;
+  align-self: flex-start;
+}
+
+.messageContent {
+  margin-bottom: 5px;
+}
+
+.timestamp {
+  font-size: 0.8em;
+  color: #666;
+  align-self: flex-end;
 }
 
 .user {
@@ -117,23 +139,12 @@
 }
 
 .imageList {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
   list-style-type: none;
   padding: 0;
 }
 
 .imageList li {
   margin-bottom: 10px;
-}
-
-.imageItem {
-  width: 100px;
-  height: 100px;
-  object-fit: cover;
-  border: 1px solid #ddd;
-  border-radius: 5px;
 }
 
 .imageListBox {

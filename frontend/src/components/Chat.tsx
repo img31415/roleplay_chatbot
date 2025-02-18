@@ -3,7 +3,9 @@ import styles from "./Chat.module.css";
 
 const Chat = () => {
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState([{ role: "bot", content: "Hi!" }]);
+  const [messages, setMessages] = useState([
+    { role: "bot", content: "Hi!", timestamp: new Date().toLocaleString() },
+  ]);
   const [initialConfigText, setInitialConfigText] = useState("");
   const [initialConfigImage, setInitialConfigImage] = useState<File | null>(
     null
@@ -66,20 +68,28 @@ const Chat = () => {
   const submitPrompt = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    setMessages([...messages, { role: "user", content: message }]);
+    const newMessage = {
+      role: "user",
+      content: message,
+      timestamp: new Date().toLocaleString(),
+    };
+    setMessages([...messages, newMessage]);
     setMessage("");
 
     try {
-      const response = await fetch(`${process.env.BACKEND_BASE_URL}/prompt`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: "testuser", // Replace with actual user ID
-          message: message,
-        }),
-      });
+      const response = await fetch(
+        `${process.env.REACT_APP_BACKEND_BASE_URL}/prompt`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: "admin", // Replace with actual user ID
+            message: message,
+          }),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json(); // Try to parse error response
@@ -89,15 +99,24 @@ const Chat = () => {
       }
 
       const data = await response.json();
-      setMessages([...messages, { role: "bot", content: data.response }]);
+      const botMessage = {
+        role: "bot",
+        content: data.response,
+        timestamp: new Date().toLocaleString(),
+      };
+      setMessages([...messages, newMessage, botMessage]);
     } catch (error) {
       console.error("Error sending message:", error);
-      setMessages([
-        ...messages,
-        { role: "bot", content: "Error sending message. Please try again." },
-      ]);
+      const errorMessage = {
+        role: "bot",
+        content: "Error sending message. Please try again.",
+        timestamp: new Date().toLocaleString(),
+      };
+      setMessages([...messages, newMessage, errorMessage]);
     }
   };
+
+  console.log("images", images);
 
   useEffect(() => {
     const fetchImages = async () => {
@@ -164,10 +183,17 @@ const Chat = () => {
         </div>
       </div>
       <div className={styles.rightPane}>
+        <h2>Talk to me</h2>
         <div className={styles.chatWindow}>
           {messages.map((m, i) => (
-            <div key={i} className={`${styles.message} ${styles[m.role]}`}>
-              {m.content}
+            <div
+              key={i}
+              className={`${styles.message} ${
+                m.role === "user" ? styles.userMessage : styles.botMessage
+              }`}
+            >
+              <div className={styles.messageContent}>{m.content}</div>
+              <div className={styles.timestamp}>{m.timestamp}</div>
             </div>
           ))}
         </div>
